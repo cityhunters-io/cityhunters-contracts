@@ -32,6 +32,45 @@ Genesis sale: starts 2026-10-28T12:00:00Z, ends 2026-10-31T12:00:00Z (UTC).
 - `test/` Foundry tests
 - `script/` Foundry deployment scripts
 
+## BNB Chain integration
+
+- Network: BNB Smart Chain mainnet, chainId 56 (`deployments/mainnet.json`)
+- Chainlink VRF v2.5 coordinator `0xd691f04bc0C9a24Edb78af9E005Cf85768F694C9` (native-paid subscription) for hero mints and merges
+- Chainlink BNB/USD feed `0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE` for the USD-priced BNB mint (`mintPriceBnb()`)
+- Frontend: ethers.js v6 against public BSC RPCs, https://cityhunters.io/play/
+- Agent-friendly mint guide (functions, gas, read-only checks): https://cityhunters.io/mint-guide/
+
+## User flow
+
+```mermaid
+flowchart LR
+  A[Wallet on BSC] -->|mintBnb qty, value = mintPriceBnb x qty| G(Game)
+  C[AgentCity card holder] -->|claimGenesisFree cardId, qty| G
+  G -->|requestRandomWords| V(Chainlink VRF v2.5)
+  V -->|rawFulfillRandomWords| G
+  G -->|mintHero| H(Hero NFT)
+  H --> W[startWork / claim: HUNT]
+  H --> B(Battle: fight id, tier)
+  B -->|Fought event| UI[Site replays battle]
+```
+
+## Architecture
+
+| Contract | Role |
+|---|---|
+| GameMainnet | Mint (BNB, free, HUNT after Genesis), VRF callback, work and claim, upgrade, merge |
+| Hero | ERC-721 hero data (rarity, class, level, 5 attributes, locks) |
+| BattleMainnet | Hero vs alien simulation and rewards, emits `Fought` |
+| ReferralMainnet / WhitelistMint | Trusted minters (referral rewards, 200 community free mints) |
+| GenesisDraw | Escrow for the Genesis lucky draw (15% of Genesis BNB mint revenue) |
+| OfficialAgentMainnet | Official hero #000 operator |
+
+## Dependencies
+
+- OpenZeppelin Contracts (MIT)
+- forge-std (MIT/Apache-2.0)
+- Chainlink VRF v2.5 and Data Feeds (interfaces only, called on-chain)
+
 ## Build & test
 
 Requires [Foundry](https://book.getfoundry.sh/).
@@ -44,7 +83,7 @@ forge test
 
 ## Configuration
 
-All economic parameters are adjustable by the owner through setter functions; nothing is hard-coded into game logic. Randomness uses Chainlink VRF on BSC.
+Some economic parameters (caps, the HUNT-per-USD rate, rewards, cooldowns, payout addresses) are adjustable by the owner through setter functions. Other game constants are fixed in code: USD mint prices ($10 during Genesis, $20 after), per-card free mints (20), max 2 heroes per paid tx, rarity odds and alien base stats in `BattleMainnet`. Mint and merge randomness uses Chainlink VRF v2.5 on BSC; battle randomness uses prevrandao/blockhash (documented in the contract).
 
 Deployment scripts read `PRIVATE_KEY` from the environment. Copy `.env.example` to `.env` locally; never commit it.
 
