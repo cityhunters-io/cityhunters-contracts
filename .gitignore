@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+out/
+cache/
+broadcast/
+lib/
+secrets/
+*key*.json
+deployer.txt
