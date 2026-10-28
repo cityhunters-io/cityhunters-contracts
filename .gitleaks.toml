@@ -1,0 +1,3 @@
+[allowlist]
+description="Public Chainlink VRF key hashes"
+regexes=["0x130dba50ad435d4ecc214aad0d5820474137bd68e7e77724144f27c3c377d3d4"]
