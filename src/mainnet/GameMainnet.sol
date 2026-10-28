@@ -288,9 +288,18 @@ contract GameMainnet is Ownable, Pausable, ReentrancyGuard {
         if (p.kind == 1) { for (uint256 i; i < p.qty; i++) _mintRandom(p.to, p.lock, p.src, uint256(keccak256(abi.encode(p.word, i)))); }
         else _mergeResolve(p.to, p.a, p.b, uint256(keccak256(abi.encode(p.word, "merge"))));
     }
-    /// @notice owner re-requests randomness for a job stuck > 1h without a VRF answer (same job, new request id).
+    /// @notice wait before a pending VRF job without an answer can be re-requested by the owner.
+    uint256 public rerequestTimeout = 10 minutes;
+    uint256 public constant MIN_REREQUEST_TIMEOUT = 2 minutes;
+    uint256 public constant MAX_REREQUEST_TIMEOUT = 24 hours;
+    event RerequestTimeoutSet(uint256 oldTimeout, uint256 newTimeout);
+    function setRerequestTimeout(uint256 t) external onlyOwner {
+        if (t < MIN_REREQUEST_TIMEOUT || t > MAX_REREQUEST_TIMEOUT) revert Bad();
+        emit RerequestTimeoutSet(rerequestTimeout, t); rerequestTimeout = t;
+    }
+    /// @notice owner re-requests randomness for a job stuck > rerequestTimeout without a VRF answer (same job, new request id).
     function rerequest(uint256 reqId) external onlyOwner {
-        Pending memory p = pending[reqId]; if (p.kind == 0 || p.word != 0 || block.timestamp < p.at + 1 hours) revert Bad();
+        Pending memory p = pending[reqId]; if (p.kind == 0 || p.word != 0 || block.timestamp < p.at + rerequestTimeout) revert Bad();
         delete pending[reqId]; _request(p);
     }
     function _mintRandom(address to, uint64 lock, uint8 src, uint256 r) internal {
